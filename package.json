@@ -1,0 +1,85 @@
+{
+  "name": "code-helper101",
+  "displayName": "code-helper101",
+  "description": "used to help you get a code chat similar to github copilott   with  enterprise grade apisand certifications",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "code-helper101.startChat",
+        "title": "101 Start Custom AI Chat"
+      }
+    ],
+    "configuration": {
+      "title": "Custom AI Chat",
+      "properties": {
+        "customAiChat.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Custom OpenAI API base URL"
+        },
+        "customAiChat.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Custom OpenAI API key"
+        },
+        "customAiChat.user": {
+          "type": "string",
+          "default": "",
+          "description": "Custom user name to use for the chat"
+        },
+        "customAiChat.model": {
+          "type": "string",
+          "default": "gpt-3.5-turbo",
+          "enum": [
+            "gpt-4",
+            "gpt-4-turbo-preview",
+            "gpt-3.5-turbo",
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4o-preview"
+          ],
+          "description": "Selected AI model"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "dependencies": {
+    "https": "^1.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.9",
+    "@types/node": "20.x",
+    "@types/node-fetch": "^2.6.1",
+    "@types/vscode": "^1.95.0",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.13.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.6.3",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4"
+  }
+}
