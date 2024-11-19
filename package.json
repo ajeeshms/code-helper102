@@ -2,7 +2,7 @@
   "name": "code-helper101",
   "displayName": "code-helper101",
   "description": "used to help you get a code chat similar to github copilott   with  enterprise grade apisand certifications",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "sanjay-code-extensions",
   "engines": {
     "vscode": "^1.95.0"
