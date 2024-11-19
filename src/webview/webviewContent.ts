@@ -49,6 +49,24 @@ export function getWebviewContent() {
                     */
                 }
 
+                .message-container {
+                    position: relative;
+                    margin: 8px 0;
+                }
+
+                .copy-button {
+                    position: absolute;
+                    bottom: 8px;
+                    right: 8px;
+                    padding: 4px 8px;
+                    font-size: 10px;
+                    opacity: 0.7;
+                }
+
+                .copy-button:hover {
+                    opacity: 1;
+                }
+
 
                 #input-container {
                     display: flex;
@@ -225,7 +243,31 @@ export function getWebviewContent() {
         const currentModelSpan = document.getElementById('current-model');
 
         // Add the message handling function
+
+        // function addMessage(text, isUser = true, isError = false) {
+        //     const messageDiv = document.createElement('div');
+        //     messageDiv.className = \`message \${isUser ? 'user-message' : 'ai-message'} \${isError ? 'error-message' : ''}\`;
+            
+        //     if (isUser) {
+        //         messageDiv.textContent = text;
+        //     } else {
+        //         // Parse markdown for AI responses
+        //         messageDiv.innerHTML = marked.parse(text);
+        //         // Apply syntax highlighting to code blocks
+        //         messageDiv.querySelectorAll('pre code').forEach((block) => {
+        //             hljs.highlightBlock(block);
+        //         });
+        //     }
+        //     messagesContainer.appendChild(messageDiv);
+        //     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        // }
+
+
+        // Update the addMessage function in the <script> section
         function addMessage(text, isUser = true, isError = false) {
+            const messageContainer = document.createElement('div');
+            messageContainer.className = 'message-container';
+
             const messageDiv = document.createElement('div');
             messageDiv.className = \`message \${isUser ? 'user-message' : 'ai-message'} \${isError ? 'error-message' : ''}\`;
             
@@ -238,9 +280,29 @@ export function getWebviewContent() {
                 messageDiv.querySelectorAll('pre code').forEach((block) => {
                     hljs.highlightBlock(block);
                 });
+
+                // Add copy button for AI messages
+                const copyButton = document.createElement('button');
+                copyButton.className = 'copy-button';
+                copyButton.textContent = 'Copy';
+                copyButton.onclick = () => {
+                    navigator.clipboard.writeText(text)
+                        .then(() => {
+                            copyButton.textContent = 'Copied!';
+                            setTimeout(() => {
+                                copyButton.textContent = 'Copy';
+                            }, 2000);
+                        })
+                        .catch(err => {
+                            console.error('Failed to copy:', err);
+                            copyButton.textContent = 'Failed';
+                        });
+                };
+                messageContainer.appendChild(copyButton);
             }
             
-            messagesContainer.appendChild(messageDiv);
+            messageContainer.appendChild(messageDiv);
+            messagesContainer.appendChild(messageContainer);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
@@ -347,7 +409,7 @@ export function getWebviewContent() {
                         addMessage('Received empty response from API', false, true);
                     }
                     break;
-                    
+
                 case 'updateModel':
                     if (message.model) {
                             currentModelSpan.textContent = message.model;
