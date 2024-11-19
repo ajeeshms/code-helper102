@@ -1,16 +1,10 @@
 # code-helper101 README
 
-This is the README for your extension "code-helper101". After writing up a brief description, we recommend including the following sections.
+This is code helper 101 a vscode extension that helps you get a code chat similar to github copilot with enterprise grade apis and certificates in the APi header call. So you should be able to use this with any enterprise grade api.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+Very simple to use. And very similar to github copilot and / or continue.dev. though we are still developing features for this extension.
 
 ## Requirements
 
@@ -71,81 +65,3 @@ You can author your README using Visual Studio Code. Here are some useful editor
 **Enjoy!**
 
 some extra config
-
-```json
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
-  },
-```
-
-old packeg.json:
-
-```json
-{
-  "name": "code-helper101",
-  "displayName": "code-helper101",
-  "description": "used to help you get a code chat similar to github copilott   with  enterprise grade apisand certifications",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.95.0"
-  },
-  "categories": ["Other"],
-  "activationEvents": [],
-  "main": "./dist/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "code-helper101.startChat",
-        "title": "Start Custom AI Chat"
-      }
-    ],
-    "configuration": {
-      "title": "Custom AI Chat",
-      "properties": {
-        "customAiChat.baseUrl": {
-          "type": "string",
-          "default": "",
-          "description": "Custom OpenAI API base URL"
-        },
-        "customAiChat.apiKey": {
-          "type": "string",
-          "default": "",
-          "description": "Custom OpenAI API key"
-        }
-      }
-    }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run package",
-    "compile": "webpack",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
-  },
-  "dependencies": {
-    "https": "^1.0.0",
-    "node-fetch": "^2.7.0"
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.9",
-    "@types/node": "20.x",
-    "@types/node-fetch": "^2.6.1",
-    "@types/vscode": "^1.95.0",
-    "@typescript-eslint/eslint-plugin": "^8.10.0",
-    "@typescript-eslint/parser": "^8.7.0",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.13.0",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.6.3",
-    "webpack": "^5.95.0",
-    "webpack-cli": "^5.1.4"
-  }
-}
-```

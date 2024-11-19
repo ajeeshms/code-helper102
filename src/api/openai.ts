@@ -1,14 +1,32 @@
 import * as https from "https";
 import fetch from "node-fetch";
+import * as fs from "fs";
+import * as path from "path";
 import { ChatMessage, APIResponse } from "../utils/types";
 import { Settings } from "../config/settings";
+// Add at the top of your file
+if (process.env.NODE_EXTRA_CA_CERTS) {
+  process.env.NODE_EXTRA_CA_CERTS = "/path/to/your/certificate.pem";
+}
 
 export class OpenAIAPI {
   private static httpsAgent = new https.Agent({
     rejectUnauthorized: false,
+    ca: [
+      // Add default certificates
+      ...require("node:tls").rootCertificates,
+      // You can add additional certificates if needed:
+      // fs.readFileSync(path.join(__dirname, '../certs/your-cert.pem'))
+    ],
+    // Optionally add client certificates if required
+    // cert: fs.readFileSync(path.join(__dirname, '../certs/client-cert.pem')),
+    // key: fs.readFileSync(path.join(__dirname, '../certs/client-key.pem')),
   });
 
-  static async sendMessage(message: string): Promise<string> {
+  static async sendMessage(
+    message: string,
+    contextFiles?: Map<string, string>
+  ): Promise<string> {
     const apiKey = await Settings.getApiKey();
     const baseUrl = await Settings.getBaseUrl();
     const model = await Settings.getCurrentModel();
@@ -16,6 +34,15 @@ export class OpenAIAPI {
 
     if (!apiKey) {
       throw new Error("API key not configured");
+    }
+
+    // Add context files if available
+    if (contextFiles && contextFiles.size > 0) {
+      const contextMessage = Array.from(contextFiles.entries())
+        .map(([path, content]) => `File: ${path}\n\`\`\`\n${content}\n\`\`\``)
+        .join("\n\n");
+      message =
+        "Here are context docs/files:\n" + contextMessage + "\n\n" + message;
     }
 
     const messages: ChatMessage[] = [{ role: "user", content: message }];

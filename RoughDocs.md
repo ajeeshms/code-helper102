@@ -150,19 +150,30 @@ old packeg.json:
 }
 ```
 
-                #input-container {
-                    display: flex;
-                    gap: 8px;
-                    padding: 10px;
-                    background-color: var(--vscode-editor-background);
-                    border-radius: 4px;
-                }
-                #message-input {
-                    flex: 1;
-                    padding: 8px;
-                    background-color: var(--vscode-input-background);
-                    color: var(--vscode-input-foreground);
-                    border: 1px solid var(--vscode-input-border);
-                    border-radius: 4px;
-                    font-size: 14px;
-                }
+```python
+import pip_system_certs.wrapt_requests
+
+import requests
+
+#If you are using the openai module, you'll need do this:
+
+import ssl, httpx
+
+ssl_context = ssl.create_default_context()
+ssl_context.load_default_certs()
+httpx_client = httpx.Client(verify=ssl_context)
+
+from openai import OpenAI
+
+client =  OpenAI(
+base_url = "https://llm-proxy-api.ai.openeng.netapp.com",
+api_key ="somekey",
+http_client = httpx_client
+)
+
+completion = client.chat.completions.create(
+model = "gpt-35-turbo",
+messages = [ {"role" : "user", "content": "Write a function that prints"}],
+user ="someuser"
+)
+```

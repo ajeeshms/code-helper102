@@ -32,6 +32,19 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     maxTokens: 128000,
     description: "Fast and more efficient but less accurate for most tasks",
   },
+  {
+    id: "o1-mini",
+    name: "o1-mini",
+    maxTokens: 128000,
+    description: "64k Output tokens, best for code and complex tasks.",
+  },
+  {
+    id: "o1-preview",
+    name: "o1-preview",
+    maxTokens: 128000,
+    description:
+      "For mostly high thoughts , processes and ideas , very costly.",
+  },
 ];
 
-export const DEFAULT_MODEL = "gpt-3.5-turbo";
+export const DEFAULT_MODEL = "gpt-4o";

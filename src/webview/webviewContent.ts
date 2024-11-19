@@ -116,6 +116,27 @@ export function getWebviewContent() {
                     100% { opacity: 1; }
                 }
 
+                .context-files {
+                    margin: 8px 0;
+                    padding: 8px;
+                    background-color: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 4px;
+                    font-size: 12px;
+                }
+
+                .context-file {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 4px;
+                }
+
+                .context-file button {
+                    padding: 2px 6px;
+                    font-size: 10px;
+                }
+
                 #model-display {
                     padding: 4px 8px;
                     font-size: 10px;
@@ -177,6 +198,13 @@ export function getWebviewContent() {
         <div class="toolbar">
             <button id="change-model">Change Model</button>
             <span id="model-display">Current Model: <span id="current-model"></span></span>
+        </div>
+        <div id="context-files" class="context-files" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span>Context Files:</span>
+                <button id="clear-context" style="font-size: 10px;">Clear All</button>
+            </div>
+            <div id="context-files-list"></div>
         </div>
         <div id="messages"></div>
         <div id="input-container">
@@ -244,6 +272,32 @@ export function getWebviewContent() {
             }
         }
 
+        function updateContextFiles(files) {
+            const contextFiles = document.getElementById('context-files');
+            const filesList = document.getElementById('context-files-list');
+            
+            if (files.length === 0) {
+                contextFiles.style.display = 'none';
+                return;
+            }
+            
+            contextFiles.style.display = 'block';
+            filesList.innerHTML = files.map(file => \`
+                <div class="context-file">
+                    <span>\${file}</span>
+                    <button onclick="removeFromContext('\${file}')">Remove</button>
+                </div>
+            \`).join('');
+        }
+
+        function removeFromContext(file) {
+            vscode.postMessage({
+                command: 'removeFromContext',
+                file: file
+            });
+        }
+
+
         // Add the message sending function
         function sendMessage() {
             const text = messageInput.value.trim();
@@ -293,6 +347,7 @@ export function getWebviewContent() {
                         addMessage('Received empty response from API', false, true);
                     }
                     break;
+                    
                 case 'updateModel':
                     if (message.model) {
                             currentModelSpan.textContent = message.model;
@@ -303,8 +358,10 @@ export function getWebviewContent() {
                             modelDisplay.style.animation = 'flash 0.5s';
                     }
                     break;
-                    // currentModelSpan.textContent = message.model;
-                    // break;
+
+                case 'updateContext':
+                    updateContextFiles(message.files);
+                    break;
             }
         });
 
