@@ -75,4 +75,57 @@ export class OpenAIAPI {
 
     return data.choices[0].message.content;
   }
+
+  static async sendChatMessages(
+    messages: ChatMessage[],
+    contextFiles?: Map<string, string>
+  ): Promise<string> {
+    const apiKey = await Settings.getApiKey();
+    const baseUrl = await Settings.getBaseUrl();
+    const model = await Settings.getCurrentModel();
+    const user = await Settings.getUser();
+
+    if (!apiKey) {
+      throw new Error("API key not configured");
+    }
+
+    // Add context files if available
+    if (contextFiles && contextFiles.size > 0) {
+      const contextMessage = Array.from(contextFiles.entries())
+        .map(([path, content]) => `File: ${path}\n\`\`\`\n${content}\n\`\`\``)
+        .join("\n\n");
+
+      // Insert context as the first system message
+      messages.unshift({
+        role: "system",
+        content: "Here are context docs/files:\n" + contextMessage,
+      });
+    }
+
+    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: "POST",
+      agent: this.httpsAgent,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        user: user,
+      }),
+    });
+
+    const data = (await response.json()) as APIResponse;
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${data.error?.message || "Unknown error"}`);
+    }
+
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error("Invalid response format from API");
+    }
+
+    return data.choices[0].message.content;
+  }
 }
