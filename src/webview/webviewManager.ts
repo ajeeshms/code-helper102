@@ -5,71 +5,70 @@ import { getWebviewContent } from "./webviewContent";
 import { DatabaseService } from "../services/DatabaseService";
 
 export class WebviewManager {
-  private panel?: vscode.WebviewPanel;
-  // private contextFiles: Set<string> = new Set();
-  private contextFiles: Map<string, string> = new Map();
-
   private static instance: WebviewManager;
   private dbService!: DatabaseService;
+  private currentSessionId?: number;
+  private panel?: vscode.WebviewPanel;
+  private contextFiles: Map<string, string> = new Map();
 
   constructor(private context: vscode.ExtensionContext) {
-    this.initialize();
     WebviewManager.instance = this;
-  }
-
-  private async initialize() {
-    this.dbService = await DatabaseService.getInstance(this.context);
   }
 
   static getInstance(): WebviewManager | undefined {
     return WebviewManager.instance;
   }
 
-  async addToContext(uri: vscode.Uri) {
-    const relativePath = vscode.workspace.asRelativePath(uri);
-    const fileContent = await vscode.workspace.fs.readFile(uri);
-    const contentText = Buffer.from(fileContent).toString("utf8");
+  async show(sessionId?: number) {
+    try {
+      // Initialize database first
+      this.dbService = await DatabaseService.getInstance(this.context);
 
-    this.contextFiles.set(relativePath, contentText);
+      // Create panel first
+      if (!this.panel) {
+        this.panel = vscode.window.createWebviewPanel(
+          "customAiChat",
+          "Custom AI Chat",
+          vscode.ViewColumn.Two,
+          {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+          }
+        );
 
-    this.panel?.webview.postMessage({
-      command: "updateContext",
-      files: Array.from(this.contextFiles.keys()),
-    });
-  }
+        this.panel.onDidDispose(() => {
+          this.panel = undefined;
+        });
 
-  async show() {
-    if (this.panel) {
-      this.panel.reveal();
-      return;
-    }
+        this.panel.webview.html = getWebviewContent();
+        this.setupMessageHandling();
+      } else {
+        this.panel.reveal();
+      }
 
-    this.panel = vscode.window.createWebviewPanel(
-      "customAiChat",
-      "Custom AI Chat",
-      vscode.ViewColumn.Two,
-      { enableScripts: true, retainContextWhenHidden: true }
-    );
+      // Handle session after panel is created
+      if (!sessionId) {
+        const title = new Date().toLocaleString();
+        this.currentSessionId = await this.dbService.createChatSession(title);
+      } else {
+        this.currentSessionId = sessionId;
+        const chatMessages = await this.dbService.loadChatSession(sessionId);
+        if (chatMessages) {
+          this.panel.webview.postMessage({
+            type: "loadPreviousChat",
+            messages: chatMessages,
+          });
+        }
+      }
 
-    this.panel.webview.html = getWebviewContent();
-    await this.updateModelDisplay();
-
-    this.panel.onDidDispose(
-      () => {
-        this.panel = undefined;
-      },
-      null,
-      this.context.subscriptions
-    );
-
-    this.setupMessageHandling();
-
-    const previousChat = await this.dbService.loadLatestChat();
-    if (previousChat) {
-      this.panel?.webview.postMessage({
-        type: "loadPreviousChat",
-        messages: previousChat,
-      });
+      await this.updateModelDisplay();
+    } catch (error) {
+      console.error("Error showing webview:", error);
+      vscode.window.showErrorMessage(
+        `Failed to initialize chat: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
@@ -87,6 +86,12 @@ export class WebviewManager {
     this.panel?.webview.onDidReceiveMessage(
       async (message) => {
         switch (message.command) {
+          case "newChat":
+            this.panel?.webview.postMessage({
+              command: "clearChat",
+            });
+            break;
+
           case "sendMessage":
             try {
               const response = await OpenAIAPI.sendMessage(
@@ -126,6 +131,14 @@ export class WebviewManager {
               files: [],
             });
             break;
+          case "saveChat":
+            if (this.currentSessionId) {
+              await this.dbService.updateChatSession(
+                this.currentSessionId,
+                message.messages
+              );
+            }
+            break;
         }
       },
       undefined,
@@ -135,5 +148,18 @@ export class WebviewManager {
 
   public async saveChatMessages(messages: any[]) {
     this.dbService.saveChat(messages);
+  }
+
+  async addToContext(uri: vscode.Uri) {
+    const relativePath = vscode.workspace.asRelativePath(uri);
+    const fileContent = await vscode.workspace.fs.readFile(uri);
+    const contentText = Buffer.from(fileContent).toString("utf8");
+
+    this.contextFiles.set(relativePath, contentText);
+
+    this.panel?.webview.postMessage({
+      command: "updateContext",
+      files: Array.from(this.contextFiles.keys()),
+    });
   }
 }

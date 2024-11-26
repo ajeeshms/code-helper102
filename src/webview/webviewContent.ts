@@ -202,6 +202,11 @@ export function getWebviewContent() {
                 .dot:nth-child(1) { animation: bounce 1.4s infinite 0s; }
                 .dot:nth-child(2) { animation: bounce 1.4s infinite 0.2s; }
                 .dot:nth-child(3) { animation: bounce 1.4s infinite 0.4s; }
+
+                .toolbar-buttons {
+                    display: flex;
+                    gap: 8px;
+                }
             </style>
             <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.7.0/build/styles/default.min.css">
@@ -214,7 +219,10 @@ export function getWebviewContent() {
 <body>
     <div id="chat-container">
         <div class="toolbar">
-            <button id="change-model">Change Model</button>
+            <div class="toolbar-buttons">
+                <button id="new-chat">New Chat</button>
+                <button id="change-model">Change Model</button>
+            </div>
             <span id="model-display">Current Model: <span id="current-model"></span></span>
         </div>
         <div id="context-files" class="context-files" style="display: none;">
@@ -464,6 +472,25 @@ export function getWebviewContent() {
                 messages: messages
             });
         }
+
+        document.getElementById('new-chat').addEventListener('click', () => {
+            vscode.postMessage({ command: 'newChat' });
+        });
+
+        // Add message handler for clearing chat
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.command) {
+                case 'clearChat':
+                    document.getElementById('messages').innerHTML = '';
+                    break;
+                // ... existing cases ...
+            }
+        });
+
+        document.getElementById('show-history').addEventListener('click', () => {
+            vscode.postMessage({ command: 'showHistory' });
+        });
     </script>
 </body>
 
