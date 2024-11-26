@@ -439,6 +439,31 @@ export function getWebviewContent() {
 
         // Focus input on load
         messageInput.focus();
+
+        // Add this to your webview's message handling
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.type) {
+                case 'loadPreviousChat':
+                    if (message.messages) {
+                        // Restore the previous chat messages to your UI
+                        message.messages.forEach(msg => {
+                            // Add the message to your chat UI
+                            addMessageToChat(msg);
+                        });
+                    }
+                    break;
+            }
+        });
+
+        // Add this function to save messages whenever a new message is added
+        function saveMessages() {
+            const messages = getAllMessages(); // Implement this to get all messages from your UI
+            vscode.postMessage({
+                type: 'saveChat',
+                messages: messages
+            });
+        }
     </script>
 </body>
 

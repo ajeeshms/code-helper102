@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { OpenAIAPI } from "../api/openai";
 import { Settings } from "../config/settings";
 import { getWebviewContent } from "./webviewContent";
+import { DatabaseService } from "../services/DatabaseService";
 
 export class WebviewManager {
   private panel?: vscode.WebviewPanel;
@@ -9,9 +10,15 @@ export class WebviewManager {
   private contextFiles: Map<string, string> = new Map();
 
   private static instance: WebviewManager;
+  private dbService!: DatabaseService;
 
   constructor(private context: vscode.ExtensionContext) {
+    this.initialize();
     WebviewManager.instance = this;
+  }
+
+  private async initialize() {
+    this.dbService = await DatabaseService.getInstance(this.context);
   }
 
   static getInstance(): WebviewManager | undefined {
@@ -41,11 +48,11 @@ export class WebviewManager {
       "customAiChat",
       "Custom AI Chat",
       vscode.ViewColumn.Two,
-      { enableScripts: true }
+      { enableScripts: true, retainContextWhenHidden: true }
     );
 
     this.panel.webview.html = getWebviewContent();
-    this.updateModelDisplay();
+    await this.updateModelDisplay();
 
     this.panel.onDidDispose(
       () => {
@@ -56,6 +63,14 @@ export class WebviewManager {
     );
 
     this.setupMessageHandling();
+
+    const previousChat = await this.dbService.loadLatestChat();
+    if (previousChat) {
+      this.panel?.webview.postMessage({
+        type: "loadPreviousChat",
+        messages: previousChat,
+      });
+    }
   }
 
   private async updateModelDisplay() {
@@ -116,5 +131,9 @@ export class WebviewManager {
       undefined,
       this.context.subscriptions
     );
+  }
+
+  public async saveChatMessages(messages: any[]) {
+    this.dbService.saveChat(messages);
   }
 }
