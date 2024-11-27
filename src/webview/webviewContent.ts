@@ -56,11 +56,17 @@ export function getWebviewContent() {
 
                 .copy-button {
                     position: absolute;
-                    bottom: 8px;
-                    right: 8px;
+                    top: 5px;
+                    right: 5px;
                     padding: 4px 8px;
-                    font-size: 10px;
+                    font-size: 12px;
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
                     opacity: 0.7;
+                    transition: opacity 0.2s;
                 }
 
                 .copy-button:hover {
@@ -125,7 +131,8 @@ export function getWebviewContent() {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 10px;
+                    margin-bottom: 8px;
+                    padding: 4px;
                     font-size: 12px;
                 }
 
@@ -156,17 +163,17 @@ export function getWebviewContent() {
                 }
 
                 #model-display {
-                    padding: 4px 8px;
+                    padding: 3px 6px;
                     font-size: 10px;
-                    border-radius: 4px;
+                    border-radius: 3px;
                     background-color: var(--vscode-editor-background);
                     border: 1px solid var(--vscode-input-border);
                 }
 
-                #change-model {
-                    padding: 4px 8px;
-                    font-size: 10px;
-                    border-radius: 4px;                
+                .toolbar-buttons button {
+                    padding: 3px 6px;
+                    font-size: 8px;
+                    border-radius: 3px;                
                 }
 
                 .loading-message {
@@ -205,7 +212,45 @@ export function getWebviewContent() {
 
                 .toolbar-buttons {
                     display: flex;
-                    gap: 8px;
+                    gap: 4px;
+                }
+
+                .code-block-container {
+                    position: relative;
+                    margin: 1em 0;
+                }
+
+                .code-copy-button {
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    padding: 4px 8px;
+                    font-size: 12px;
+                    background-color: #9c27b0; /* Purple color */
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    opacity: 0.8;
+                    transition: opacity 0.2s;
+                }
+
+                .code-copy-button:hover {
+                    opacity: 1;
+                }
+
+                pre {
+                    position: relative;
+                    padding: 1em;
+                    background-color: var(--vscode-editor-background);
+                    border-radius: 4px;
+                    overflow: auto;
+                    margin: 0;
+                }
+
+                code {
+                    font-family: 'Courier New', Courier, monospace;
+                    font-size: 14px;
                 }
             </style>
             <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -220,7 +265,7 @@ export function getWebviewContent() {
     <div id="chat-container">
         <div class="toolbar">
             <div class="toolbar-buttons">
-                <button id="new-chat">New Chat</button>
+                <button id="new-chat" >New Chat</button>
                 <button id="show-history">Show History</button>
                 <button id="change-model">Change Model</button>
             </div>
@@ -287,21 +332,17 @@ export function getWebviewContent() {
             } else {
                 // Parse markdown for AI responses
                 messageDiv.innerHTML = marked.parse(text);
-                // Apply syntax highlighting to code blocks
-                messageDiv.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightBlock(block);
-                });
-
-                // Add copy button for AI messages
+                
+                // Add copy button for the entire message
                 const copyButton = document.createElement('button');
                 copyButton.className = 'copy-button';
-                copyButton.textContent = 'Copy';
+                copyButton.textContent = 'Copy All';
                 copyButton.onclick = () => {
                     navigator.clipboard.writeText(text)
                         .then(() => {
                             copyButton.textContent = 'Copied!';
                             setTimeout(() => {
-                                copyButton.textContent = 'Copy';
+                                copyButton.textContent = 'Copy All';
                             }, 2000);
                         })
                         .catch(err => {
@@ -310,6 +351,42 @@ export function getWebviewContent() {
                         });
                 };
                 messageContainer.appendChild(copyButton);
+
+                // Add copy buttons for each code block
+                messageDiv.querySelectorAll('pre code').forEach((block) => {
+                    // Apply syntax highlighting
+                    hljs.highlightBlock(block);
+
+                    // Create container for code block and its button
+                    const codeContainer = document.createElement('div');
+                    codeContainer.className = 'code-block-container';
+
+                    // Create copy button for this specific code block
+                    const codeCopyButton = document.createElement('button');
+                    codeCopyButton.className = 'code-copy-button';
+                    codeCopyButton.textContent = 'Copy Code';
+                    codeCopyButton.onclick = () => {
+                        navigator.clipboard.writeText(block.textContent || '')
+                            .then(() => {
+                                codeCopyButton.textContent = 'Copied!';
+                                setTimeout(() => {
+                                    codeCopyButton.textContent = 'Copy Code';
+                                }, 2000);
+                            })
+                            .catch(err => {
+                                console.error('Failed to copy code:', err);
+                                codeCopyButton.textContent = 'Failed';
+                            });
+                    };
+
+                    // Wrap the code block in the container with its button
+                    const preElement = block.parentElement;
+                    if (preElement && preElement.parentElement) {
+                        preElement.parentElement.insertBefore(codeContainer, preElement);
+                        codeContainer.appendChild(preElement);
+                        codeContainer.appendChild(codeCopyButton);
+                    }
+                });
             }
             
             messageContainer.appendChild(messageDiv);
