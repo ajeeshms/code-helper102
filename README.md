@@ -1,6 +1,12 @@
 # Code Helper 101
 
+![alt text](code-helper-101-sm.png)
+
 A powerful VSCode extension that provides AI-powered code assistance similar to GitHub Copilot, but with enterprise-grade API support and custom certificate handling. Perfect for organizations requiring secure, self-hosted, or custom AI solutions.
+
+This extension automatically works with your exsitin certificates so it will send the certificates to the AI endpoint of your choosing ( i.e. Enterprise endpoint).
+
+We are working on a few new agentic features that will be hopefully released very soon.
 
 ## Features
 
@@ -37,22 +43,23 @@ json
 
 ### Required Settings
 
-- `codeHelper101.apiEndpoint`: Your AI service endpoint
+- `codeHelper101.baseURL`: Your AI service endpoint also known as base URL
 - `codeHelper101.apiKey`: API key for authentication
 
 ### Optional Settings
 
 - `codeHelper101.certificatePath`: Path to custom SSL certificate
+- `codeHelper101.user`: User name for authentication
+- `codeHelper101.password`: Password for authentication
 - `codeHelper101.headers`: Additional API headers
 - `codeHelper101.enable`: Enable/disable the extension (default: true)
-- `codeHelper101.suggestionDelay`: Delay before showing suggestions (default: 300ms)
 
 ## Usage
 
-1. Start typing code in any file
-2. The AI assistant will automatically provide suggestions
-3. Accept suggestions using Tab or Enter
-4. Trigger manual suggestions with Ctrl+Space (Cmd+Space on macOS)
+1. Ctrl + Shift + P
+2. Select 101 Start Custom AI Chat
+3. The AI assistant will automatically answer your questions
+4. Right click on the editor and select 101 Add to Chat Context to add the context to the current file
 
 ## Known Issues
 
@@ -61,18 +68,33 @@ json
 
 ## Release Notes
 
-### 1.0.0
+### 0.0.2
 
 - Initial release
 - Basic code completion functionality
 - Enterprise API support
 - Custom certificate handling
 
-### 1.0.1
+### 0.0.3
 
-- Improved error handling
-- Better API response parsing
-- Fixed certificate validation issues
+- Initial release
+- Basic code completion functionality
+- Enterprise API support
+- Custom certificate handling
+- Chat history
+- multi turn chat
+
+### 0.0.4 rolling out
+
+- agentic code insertion
+- auto code completion
+- auto code suggestion
+- auto code explanation
+
+### 0.0.5
+
+- agentic code review
+- active RAG
 
 ## Contributing
 
@@ -107,6 +129,14 @@ git clone https://github.com/sanjuhs/code-helper101.git
 cd code-helper101
 npm install
 npm run build
+```
+
+For VS code extension
+
+kindly use VSCE to build the extension and publish it to the marketplace
+
+```bash
+vsce package
 ```
 
 ### Running Tests
