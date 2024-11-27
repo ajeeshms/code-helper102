@@ -16,8 +16,9 @@ export async function activate(context: vscode.ExtensionContext) {
     // Register commands
     let disposable = vscode.commands.registerCommand(
       "code-helper101.startChat",
-      async () => {
-        await webviewManager.show();
+      async (sessionId?: number) => {
+        console.log("[Extension] Starting chat with sessionId:", sessionId);
+        await webviewManager.show(sessionId);
       }
     );
 

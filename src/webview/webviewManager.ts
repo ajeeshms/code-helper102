@@ -21,11 +21,14 @@ export class WebviewManager {
 
   async show(sessionId?: number) {
     try {
+      console.log("[WebviewManager] Show called with sessionId:", sessionId);
+
       // Initialize database first
       this.dbService = await DatabaseService.getInstance(this.context);
 
-      // Create panel first
+      // Create or get panel
       if (!this.panel) {
+        console.log("[WebviewManager] Creating new panel");
         this.panel = vscode.window.createWebviewPanel(
           "customAiChat",
           "Custom AI Chat",
@@ -38,37 +41,51 @@ export class WebviewManager {
 
         this.panel.onDidDispose(() => {
           this.panel = undefined;
+          console.log("Panel disposed");
         });
 
         this.panel.webview.html = getWebviewContent();
         this.setupMessageHandling();
-      } else {
-        this.panel.reveal();
       }
 
+      // Always reveal the panel
+      this.panel.reveal();
+
       // Handle session after panel is created
-      if (!sessionId) {
-        const title = new Date().toLocaleString();
-        this.currentSessionId = await this.dbService.createChatSession(title);
-      } else {
+      if (sessionId) {
+        // Load existing session
         this.currentSessionId = sessionId;
+        console.log("[WebviewManager] Loading existing session:", sessionId);
         const chatMessages = await this.dbService.loadChatSession(sessionId);
+        console.log("[WebviewManager] Loaded chat messages:", chatMessages);
         if (chatMessages) {
+          console.log("Sending messages to webview:", chatMessages);
+          // Clear existing chat first
+          this.panel.webview.postMessage({ command: "clearChat" });
+          // Then load the previous chat
           this.panel.webview.postMessage({
-            type: "loadPreviousChat",
+            command: "loadPreviousChat",
             messages: chatMessages,
           });
         }
+      } else {
+        // Create new chat session
+        const title = new Date().toLocaleString();
+        const newSessionId = await this.dbService.createChatSession(title);
+        if (!newSessionId) {
+          throw new Error("Failed to create new chat session");
+        }
+        this.currentSessionId = newSessionId;
+        console.log(
+          "[WebviewManager] Created new session with ID:",
+          this.currentSessionId
+        );
       }
 
       await this.updateModelDisplay();
     } catch (error) {
-      console.error("Error showing webview:", error);
-      vscode.window.showErrorMessage(
-        `Failed to initialize chat: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      console.error("[WebviewManager] Error:", error);
+      throw error; // Let the error propagate
     }
   }
 
@@ -85,22 +102,51 @@ export class WebviewManager {
   private setupMessageHandling() {
     this.panel?.webview.onDidReceiveMessage(
       async (message) => {
+        console.log("[WebviewManager] Received message:", message);
         switch (message.command) {
           case "newChat":
-            this.panel?.webview.postMessage({
-              command: "clearChat",
-            });
+            try {
+              // Create new chat session
+              const title = new Date().toLocaleString();
+              const newSessionId = await this.dbService.createChatSession(
+                title
+              );
+              this.currentSessionId = newSessionId;
+
+              // Clear the chat in webview
+              this.panel?.webview.postMessage({
+                command: "clearChat",
+                newSession: true, // Add this flag
+              });
+
+              console.log(
+                "[WebviewManager] Created new chat session:",
+                newSessionId
+              );
+            } catch (error) {
+              console.error("[WebviewManager] Error creating new chat:", error);
+              vscode.window.showErrorMessage(
+                "Failed to create new chat session"
+              );
+            }
             break;
 
           case "sendMessage":
             try {
-              const response = await OpenAIAPI.sendMessage(
-                message.text,
+              const response = await OpenAIAPI.sendChatMessages(
+                message.messages,
                 this.contextFiles
               );
+
+              // Send response to webview
               this.panel?.webview.postMessage({
                 command: "receiveResponse",
                 text: response,
+              });
+
+              // Wait for the webview to send back the updated messages
+              this.panel?.webview.postMessage({
+                command: "requestMessages",
               });
             } catch (error: any) {
               vscode.window.showErrorMessage(`Error: ${error.message}`);
@@ -108,6 +154,19 @@ export class WebviewManager {
                 command: "receiveResponse",
                 text: `Error: ${error.message}`,
               });
+            }
+            break;
+
+          case "updateMessages":
+            if (this.currentSessionId && message.messages) {
+              console.log(
+                "[WebviewManager] Received messages update:",
+                message.messages
+              );
+              await this.dbService.updateChatSession(
+                this.currentSessionId,
+                message.messages
+              );
             }
             break;
 
@@ -133,11 +192,22 @@ export class WebviewManager {
             break;
           case "saveChat":
             if (this.currentSessionId) {
+              console.log(
+                "[WebviewManager] Saving chat for session:",
+                this.currentSessionId
+              );
               await this.dbService.updateChatSession(
                 this.currentSessionId,
                 message.messages
               );
+            } else {
+              console.log("[WebviewManager] No current session ID!");
             }
+            break;
+          case "showHistory":
+            await vscode.commands.executeCommand(
+              "code-helper101.showChatHistory"
+            );
             break;
         }
       },
@@ -147,7 +217,9 @@ export class WebviewManager {
   }
 
   public async saveChatMessages(messages: any[]) {
-    this.dbService.saveChat(messages);
+    if (this.currentSessionId) {
+      await this.dbService.saveChat(messages, this.currentSessionId);
+    }
   }
 
   async addToContext(uri: vscode.Uri) {

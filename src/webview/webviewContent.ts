@@ -221,6 +221,7 @@ export function getWebviewContent() {
         <div class="toolbar">
             <div class="toolbar-buttons">
                 <button id="new-chat">New Chat</button>
+                <button id="show-history">Show History</button>
                 <button id="change-model">Change Model</button>
             </div>
             <span id="model-display">Current Model: <span id="current-model"></span></span>
@@ -249,6 +250,8 @@ export function getWebviewContent() {
         const sendButton = document.getElementById('send-button');
         const changeModelButton = document.getElementById('change-model');
         const currentModelSpan = document.getElementById('current-model');
+
+        let messages = [];
 
         // Add the message handling function
 
@@ -370,15 +373,30 @@ export function getWebviewContent() {
 
         // Add the message sending function
         function sendMessage() {
-            const text = messageInput.value.trim();
-            if (text) {
-                addMessage(text, true);
+            const messageText = document.getElementById('message-input').value;
+            if (messageText.trim()) {
+                // Display user message immediately
+                addMessage(messageText, true);
+                
+                // Add user message to messages array
+                messages.push({
+                    role: 'user',
+                    content: messageText,
+                    timestamp: Date.now()
+                });
+                
+                // Add loading indicator
                 addLoadingIndicator();
+                
+                // Send to extension
                 vscode.postMessage({
                     command: 'sendMessage',
-                    text: text
+                    text: messageText,
+                    messages: messages
                 });
-                messageInput.value = '';
+                
+                // Clear input
+                document.getElementById('message-input').value = '';
             }
         }
 
@@ -451,16 +469,32 @@ export function getWebviewContent() {
         // Add this to your webview's message handling
         window.addEventListener('message', event => {
             const message = event.data;
-            switch (message.type) {
+            console.log('Received message:', message);
+            switch (message.command) {
+                case 'clearChat':
+                    // Clear UI
+                    document.getElementById('messages').innerHTML = '';
+                    // Clear messages array if it's a new session
+                    if (message.newSession) {
+                        messages = [];
+                        console.log('Cleared messages array for new session');
+                    }
+                    break;
                 case 'loadPreviousChat':
+                    console.log('Loading previous chat:', message.messages);
                     if (message.messages) {
-                        // Restore the previous chat messages to your UI
+                        // Clear existing messages first
+                        messages = [];
+                        document.getElementById('messages').innerHTML = '';
+                        
+                        // Load the messages
+                        messages = message.messages;
                         message.messages.forEach(msg => {
-                            // Add the message to your chat UI
-                            addMessageToChat(msg);
+                            addMessage(msg.content, msg.role === 'user');
                         });
                     }
                     break;
+                // ... other cases
             }
         });
 
@@ -474,6 +508,9 @@ export function getWebviewContent() {
         }
 
         document.getElementById('new-chat').addEventListener('click', () => {
+            // Clear local messages immediately for better UX
+            document.getElementById('messages').innerHTML = '';
+            messages = [];
             vscode.postMessage({ command: 'newChat' });
         });
 
@@ -482,7 +519,13 @@ export function getWebviewContent() {
             const message = event.data;
             switch (message.command) {
                 case 'clearChat':
+                    // Clear UI
                     document.getElementById('messages').innerHTML = '';
+                    // Clear messages array if it's a new session
+                    if (message.newSession) {
+                        messages = [];
+                        console.log('Cleared messages array for new session');
+                    }
                     break;
                 // ... existing cases ...
             }
@@ -491,6 +534,44 @@ export function getWebviewContent() {
         document.getElementById('show-history').addEventListener('click', () => {
             vscode.postMessage({ command: 'showHistory' });
         });
+
+        // Add this to your message handling
+        window.addEventListener('message', event => {
+            const message = event.data;
+            
+            switch (message.command) {
+                case 'receiveResponse':
+                    // Add the AI response to messages
+                    messages.push({
+                        role: 'assistant',
+                        content: message.text,
+                        timestamp: Date.now()
+                    });
+                    // Update the UI with the response
+                    // ... your existing response handling code ...
+                    break;
+                    
+                case 'requestMessages':
+                    // Send the current messages back to the extension
+                    vscode.postMessage({
+                        command: 'updateMessages',
+                        messages: messages
+                    });
+                    break;
+            }
+        });
+
+        // Handle clearing chat
+        function clearChat() {
+            messages = [];
+            // ... your existing clear chat code ...
+        }
+
+        // When loading previous chat
+        function loadPreviousChat(loadedMessages) {
+            messages = loadedMessages;
+            // ... your existing load chat code ...
+        }
     </script>
 </body>
 

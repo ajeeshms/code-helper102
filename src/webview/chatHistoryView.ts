@@ -15,29 +15,46 @@ export class ChatHistoryView {
   }
 
   public async show() {
-    if (this.panel) {
-      this.panel.reveal();
-      return;
+    try {
+      this.panel = vscode.window.createWebviewPanel(
+        ChatHistoryView.viewType,
+        "Chat History",
+        vscode.ViewColumn.One,
+        { enableScripts: true }
+      );
+
+      const sessions = await this.dbService.getChatSessions();
+      this.panel.webview.html = this.getHistoryWebviewContent(sessions);
+
+      this.panel.onDidDispose(() => {
+        this.panel = undefined;
+      });
+
+      this.panel.webview.onDidReceiveMessage(async (message) => {
+        if (message.command === "openChat") {
+          const sessionId = parseInt(message.sessionId, 10);
+          console.log(
+            "[ChatHistoryView] Opening chat with sessionId:",
+            sessionId
+          );
+          if (!isNaN(sessionId)) {
+            await vscode.commands.executeCommand(
+              "code-helper101.startChat",
+              sessionId
+            );
+            this.panel?.dispose();
+          } else {
+            console.error(
+              "[ChatHistoryView] Invalid sessionId:",
+              message.sessionId
+            );
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error showing chat history:", error);
+      vscode.window.showErrorMessage("Failed to show chat history");
     }
-
-    this.panel = vscode.window.createWebviewPanel(
-      ChatHistoryView.viewType,
-      "Chat History",
-      vscode.ViewColumn.One,
-      { enableScripts: true }
-    );
-
-    const sessions = await this.dbService.getChatSessions();
-    this.panel.webview.html = this.getHistoryWebviewContent(sessions);
-
-    this.panel.webview.onDidReceiveMessage(async (message) => {
-      if (message.command === "openChat") {
-        await vscode.commands.executeCommand(
-          "code-helper101.startChat",
-          message.sessionId
-        );
-      }
-    });
   }
 
   private getHistoryWebviewContent(sessions: ChatSession[]): string {
@@ -66,8 +83,13 @@ export class ChatHistoryView {
             .map(
               (session) => `
             <div class="chat-session" onclick="openChat(${session.id})">
-              <div class="chat-title">${session.title}</div>
-              <div class="chat-preview">${session.lastMessage}</div>
+              <div class="chat-title">${
+                session.title ||
+                "Chat from " + new Date(session.created_at).toLocaleString()
+              }</div>
+              <div class="chat-preview">${
+                session.lastMessage || "No messages"
+              }</div>
               <div class="chat-date">${new Date(
                 session.updated_at
               ).toLocaleString()}</div>
@@ -78,7 +100,11 @@ export class ChatHistoryView {
           <script>
             const vscode = acquireVsCodeApi();
             function openChat(sessionId) {
-              vscode.postMessage({ command: 'openChat', sessionId });
+              console.log('Opening chat:', sessionId);
+              vscode.postMessage({ 
+                command: 'openChat', 
+                sessionId: sessionId 
+              });
             }
           </script>
         </body>

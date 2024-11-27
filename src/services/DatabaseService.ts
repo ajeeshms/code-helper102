@@ -23,6 +23,7 @@ export class DatabaseService {
   private dbPath: string;
   private initialized = false;
   private context: vscode.ExtensionContext;
+  private currentSessionId?: number;
 
   private constructor(context: vscode.ExtensionContext) {
     this.dbPath = path.join(context.globalStorageUri.fsPath, "chats.db");
@@ -69,18 +70,57 @@ export class DatabaseService {
           console.log("Loading existing database");
           const data = fs.readFileSync(this.dbPath);
           this.db = new SQL.Database(data);
+
+          // Drop and recreate tables to ensure correct schema
+          this.db.run("DROP TABLE IF EXISTS chats");
+          this.db.run("DROP TABLE IF EXISTS chat_sessions");
+          this.db.run(`
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+              id INTEGER PRIMARY KEY,
+              title TEXT NOT NULL,
+              last_message TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS chats (
+              id INTEGER PRIMARY KEY,
+              session_id INTEGER NOT NULL,
+              messages TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY(session_id) REFERENCES chat_sessions(id)
+            );
+          `);
+          this.saveToFile();
         } else {
           console.log("Creating new database");
           this.db = new SQL.Database();
           this.db.run(`
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+              id INTEGER PRIMARY KEY,
+              title TEXT NOT NULL,
+              last_message TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS chats (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              id INTEGER PRIMARY KEY,
+              session_id INTEGER NOT NULL,
               messages TEXT NOT NULL,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY(session_id) REFERENCES chat_sessions(id)
+            );
           `);
           this.saveToFile();
         }
+
+        // Verify tables exist
+        const tables = this.db.exec(
+          "SELECT name FROM sqlite_master WHERE type='table'"
+        );
+        console.log("Available tables:", tables);
+
         this.initialized = true;
         console.log("Database initialization complete");
       } catch (dbError) {
@@ -106,12 +146,16 @@ export class DatabaseService {
     fs.writeFileSync(this.dbPath, buffer);
   }
 
-  public async saveChat(messages: ChatMessage[]): Promise<void> {
+  public async saveChat(
+    messages: ChatMessage[],
+    sessionId: number
+  ): Promise<void> {
     try {
       await this.initializeDatabase();
       if (!this.db) return;
 
-      this.db.run("INSERT INTO chats (messages) VALUES (?)", [
+      this.db.run("INSERT INTO chats (session_id, messages) VALUES (?, ?)", [
+        sessionId,
         JSON.stringify(messages),
       ]);
       this.saveToFile();
@@ -164,12 +208,36 @@ export class DatabaseService {
 
   public async createChatSession(title: string): Promise<number> {
     await this.initializeDatabase();
-    const result = this.db.run(
-      "INSERT INTO chat_sessions (title, last_message) VALUES (?, ?)",
-      [title, ""]
-    );
-    this.saveToFile();
-    return result.lastID;
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      // First, get the current max ID
+      const maxIdResult = this.db.exec("SELECT MAX(id) FROM chat_sessions");
+      const nextId = maxIdResult[0]?.values[0]?.[0]
+        ? Number(maxIdResult[0].values[0][0]) + 1
+        : 1;
+
+      console.log("[DatabaseService] Next session ID will be:", nextId);
+
+      // Insert new session with explicit ID
+      this.db.run(
+        "INSERT INTO chat_sessions (id, title, last_message) VALUES (?, ?, ?)",
+        [nextId, title, ""]
+      );
+
+      this.saveToFile();
+      console.log("[DatabaseService] Created new session with ID:", nextId);
+      return nextId;
+    } catch (error) {
+      console.error("[DatabaseService] Error creating chat session:", error);
+      throw new Error(
+        `Failed to create chat session: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   public async getChatSessions(): Promise<ChatSession[]> {
@@ -191,14 +259,23 @@ export class DatabaseService {
     sessionId: number
   ): Promise<ChatMessage[] | null> {
     await this.initializeDatabase();
-    const result = this.db.exec(
-      "SELECT messages FROM chats WHERE session_id = ? ORDER BY created_at ASC",
-      [sessionId]
-    );
-    if (result.length && result[0].values.length) {
-      return JSON.parse(result[0].values[0][0]);
+    console.log("[DatabaseService] Loading chat session with ID:", sessionId);
+    try {
+      const result = this.db.exec(
+        "SELECT messages FROM chats WHERE session_id = ? ORDER BY created_at DESC LIMIT 1",
+        [sessionId]
+      );
+
+      if (result.length && result[0].values.length) {
+        const messages = JSON.parse(result[0].values[0][0]);
+        console.log("[DatabaseService] Loaded messages:", messages);
+        return messages;
+      }
+      return null;
+    } catch (error) {
+      console.error("[DatabaseService] Error loading chat session:", error);
+      return null;
     }
-    return null;
   }
 
   public async updateChatSession(
@@ -206,16 +283,44 @@ export class DatabaseService {
     messages: ChatMessage[]
   ): Promise<void> {
     await this.initializeDatabase();
-    const lastMessage =
-      messages[messages.length - 1]?.content?.substring(0, 100) || "";
-    this.db.run(
-      "UPDATE chat_sessions SET last_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      [lastMessage, sessionId]
-    );
-    this.db.run("INSERT INTO chats (session_id, messages) VALUES (?, ?)", [
-      sessionId,
-      JSON.stringify(messages),
-    ]);
-    this.saveToFile();
+    if (!messages || messages.length === 0) {
+      console.log("[DatabaseService] No messages to update");
+      return;
+    }
+
+    try {
+      // Update the session's metadata
+      const lastMessage =
+        messages[messages.length - 1]?.content?.substring(0, 100) || "";
+      const title =
+        messages[0]?.content?.substring(0, 50) + "..." || "New Chat";
+
+      this.db.run(
+        `UPDATE chat_sessions 
+         SET last_message = ?, 
+             title = CASE 
+               WHEN title = '' THEN ? 
+               ELSE title 
+             END, 
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [lastMessage, title, sessionId]
+      );
+
+      // Insert the new chat entry
+      this.db.run("INSERT INTO chats (session_id, messages) VALUES (?, ?)", [
+        sessionId,
+        JSON.stringify(messages),
+      ]);
+
+      this.saveToFile();
+      console.log(
+        "[DatabaseService] Successfully updated chat session:",
+        sessionId
+      );
+    } catch (error) {
+      console.error("[DatabaseService] Error updating chat session:", error);
+      throw error;
+    }
   }
 }
