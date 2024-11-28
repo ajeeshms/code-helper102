@@ -24,7 +24,6 @@ const extensionConfig = {
   externals: {
     vscode: "commonjs vscode", // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
     // modules added here also need to be added in the .vscodeignore file
-    "sql.js": "commonjs2 sql.js",
     fs: "commonjs fs",
     path: "commonjs path",
   },
@@ -38,7 +37,7 @@ const extensionConfig = {
     },
   },
   module: {
-    noParse: /sql\.js/,
+    noParse: [/sql\.js/],
     rules: [
       {
         test: /\.ts$/,

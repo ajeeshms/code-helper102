@@ -97,7 +97,7 @@ export class OpenAIAPI {
 
       // Insert context as the first system message
       messages.unshift({
-        role: "system",
+        role: "user",
         content: "Here are context docs/files:\n" + contextMessage,
       });
     }

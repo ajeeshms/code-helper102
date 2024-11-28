@@ -6,9 +6,13 @@ import { ChatHistoryView } from "./webview/chatHistoryView";
 export async function activate(context: vscode.ExtensionContext) {
   try {
     console.log('Extension "code-helper101" is now active!');
+    console.log("Extension path:", context.extensionPath);
+    console.log("Global storage path:", context.globalStorageUri.fsPath);
 
     // Initialize database service first
+    console.log("About to initialize DatabaseService");
     await DatabaseService.getInstance(context);
+    console.log("DatabaseService initialization completed");
 
     const webviewManager = new WebviewManager(context);
     const chatHistoryView = new ChatHistoryView(context);

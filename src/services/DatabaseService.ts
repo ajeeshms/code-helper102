@@ -35,19 +35,41 @@ export class DatabaseService {
 
     try {
       console.log("Starting database initialization...");
+      console.log("__dirname:", __dirname);
 
       // Initialize with config
       const config = {
         locateFile: (filename: string) => {
+          console.log("Attempting to locate file:", filename);
           if (filename.endsWith(".wasm")) {
-            return path.join(__dirname, filename);
+            // Try multiple possible locations
+            const possiblePaths = [
+              path.join(__dirname, "sql-wasm.wasm"),
+              path.join(__dirname, "..", "sql-wasm.wasm"),
+              path.join(__dirname, "..", "dist", "sql-wasm.wasm"),
+              path.join(this.context.extensionPath, "dist", "sql-wasm.wasm"),
+            ];
+
+            for (const wasmPath of possiblePaths) {
+              console.log("Checking path:", wasmPath);
+              if (fs.existsSync(wasmPath)) {
+                console.log("Found WASM at:", wasmPath);
+                return wasmPath;
+              }
+            }
+
+            // Return the first path as fallback
+            console.log("Falling back to:", possiblePaths[0]);
+            return possiblePaths[0];
           }
           return filename;
         },
-        // Force node environment
         nodeEnvironment: true,
       };
 
+      console.log("About to initialize SQL.js with config:", config);
+
+      // Use the imported sqlWasm instead of requiring it
       const SQL = await initSqlJs(config);
 
       if (!SQL || !SQL.Database) {
@@ -320,6 +342,24 @@ export class DatabaseService {
       );
     } catch (error) {
       console.error("[DatabaseService] Error updating chat session:", error);
+      throw error;
+    }
+  }
+
+  public async deleteChatSession(sessionId: number): Promise<void> {
+    await this.initializeDatabase();
+    try {
+      // Delete all chat messages for this session
+      this.db.run("DELETE FROM chats WHERE session_id = ?", [sessionId]);
+      // Delete the session itself
+      this.db.run("DELETE FROM chat_sessions WHERE id = ?", [sessionId]);
+      this.saveToFile();
+      console.log(
+        "[DatabaseService] Successfully deleted chat session:",
+        sessionId
+      );
+    } catch (error) {
+      console.error("[DatabaseService] Error deleting chat session:", error);
       throw error;
     }
   }
