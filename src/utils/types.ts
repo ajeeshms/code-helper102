@@ -21,3 +21,8 @@ export interface APIResponse {
     message: string;
   };
 }
+
+export enum ModelHost {
+  AzureOpenAI = 'AzureOpenAI',
+  OpenAI = 'OpenAI'
+}

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { AVAILABLE_MODELS, DEFAULT_MODEL } from "./models";
+import { ModelHost } from "../utils/types";
 
 export class Settings {
   private static readonly CONFIG_SECTION = "customAiChat";
@@ -31,7 +32,34 @@ export class Settings {
     const config = vscode.workspace.getConfiguration(this.CONFIG_SECTION);
     return config.get<string>("user") || "vscode-user";
   }
+  static async getHost() : Promise<ModelHost> {
+    const config = vscode.workspace.getConfiguration(this.CONFIG_SECTION);
+    var value = config.get<string>("modelHost");
+    return ModelHost[value as keyof typeof ModelHost];
+  }
+  static async getDeploymentName() : Promise<string> {
+    const config = vscode.workspace.getConfiguration(this.CONFIG_SECTION);
+    let deploymentName = config.get<string>("deploymentName");
 
+    if (!deploymentName) {
+      deploymentName = await vscode.window.showInputBox({
+        prompt: "Please enter your AzureOpenAI deployment name",
+        password: false,
+      });
+
+      if (deploymentName) {
+        await config.update("deploymentName", deploymentName, true);
+      }
+      else {
+        throw new Error("Must provide deployment name for Azure OpenAI host");
+      }
+    }
+    return deploymentName;
+  }
+  static async getApiVersion() : Promise<string> {
+    const config = vscode.workspace.getConfiguration(this.CONFIG_SECTION);
+    return config.get<string>("apiVersion") || '2024-08-01-preview';
+  }
   static async getCurrentModel(): Promise<string> {
     const config = vscode.workspace.getConfiguration(this.CONFIG_SECTION);
     return config.get<string>("model") || DEFAULT_MODEL;

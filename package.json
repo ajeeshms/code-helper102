@@ -1,9 +1,9 @@
 {
-  "name": "code-helper101",
-  "displayName": "code-helper101",
-  "description": "used to help you get a code chat similar to github copilott   with  enterprise grade apisand certifications",
-  "version": "0.0.4",
-  "publisher": "sanjay-code-extensions",
+  "name": "code-helper102",
+  "displayName": "code-helper102",
+  "description": "used to help you get a code chat similar to github copilot with  enterprise grade api sand certifications",
+  "version": "0.0.5",
+  "publisher": "ajeeshm",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -16,15 +16,15 @@
     "commands": [
       {
         "command": "code-helper101.startChat",
-        "title": "101 Start Custom AI Chat"
+        "title": "102 Start Custom AI Chat"
       },
       {
         "command": "code-helper101.addToContext",
-        "title": "101 Add to Chat Context"
+        "title": "102 Add to Chat Context"
       },
       {
         "command": "code-helper101.showChatHistory",
-        "title": "101 Show Chat History"
+        "title": "102 Show Chat History"
       }
     ],
     "menus": {
@@ -42,7 +42,7 @@
       ]
     },
     "configuration": {
-      "title": "101 Custom AI Chat",
+      "title": "102 Custom AI Chat",
       "properties": {
         "customAiChat.baseUrl": {
           "type": "string",
@@ -54,10 +54,31 @@
           "default": "",
           "description": "Custom OpenAI API key"
         },
+        "customAiChat.modelHost" : {
+          "type": "string",
+          "default": "OpenAI",
+          "enum": [
+            "OpenAI",
+            "AzureOpenAI"
+          ]
+        },
+        "customAiChat.deploymentName" : {
+          "type": "string",
+          "default": "",
+          "description": "Model deployment name(for Azure OpenAI)",
+          "when": "customAiChat.modelHost === 'AzureOpenAI'"
+        },
+        "customAiChat.apiVersion" : {
+          "type": "string",
+          "default": "",
+          "description": "Api version (for Azure OpenAI)",
+          "when": "customAiChat.modelHost === 'AzureOpenAI'"
+        },
         "customAiChat.user": {
           "type": "string",
           "default": "",
-          "description": "Custom user name to use for the chat"
+          "description": "Custom user name to use for the chat",
+          "when": "'customAiChat.modelHost === 'OpenAI'"
         },
         "customAiChat.model": {
           "type": "string",
@@ -71,7 +92,8 @@
             "o1-mini",
             "o1-preview"
           ],
-          "description": "Selected AI model"
+          "description": "Selected AI model",
+          "when": "'customAiChat.modelHost === 'OpenAI'"
         }
       }
     }

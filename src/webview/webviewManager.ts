@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
-import { OpenAIAPI } from "../api/openai";
 import { Settings } from "../config/settings";
 import { getWebviewContent } from "./webviewContent";
 import { DatabaseService } from "../services/DatabaseService";
+import { ApiManager } from "../api/apiManager";
 
 export class WebviewManager {
   private static instance: WebviewManager;
@@ -133,7 +133,7 @@ export class WebviewManager {
 
           case "sendMessage":
             try {
-              const response = await OpenAIAPI.sendChatMessages(
+              const response = await (await ApiManager.getApiClient()).sendChatMessages(
                 message.messages,
                 this.contextFiles
               );
@@ -223,6 +223,13 @@ export class WebviewManager {
   }
 
   async addToContext(uri: vscode.Uri) {
+    const files = await this.listAllFiles(uri);
+    for(const file of files) {
+      await this.addFileToContext(file);
+    }
+  }
+
+  async addFileToContext(uri: vscode.Uri): Promise<void> {
     const relativePath = vscode.workspace.asRelativePath(uri);
     const fileContent = await vscode.workspace.fs.readFile(uri);
     const contentText = Buffer.from(fileContent).toString("utf8");
@@ -234,4 +241,42 @@ export class WebviewManager {
       files: Array.from(this.contextFiles.keys()),
     });
   }
+
+  async listAllFiles(uri: vscode.Uri): Promise<vscode.Uri[]> {
+    let allFiles: vscode.Uri[] = [];
+  
+    async function traverseDirectory(directoryUri: vscode.Uri) {
+      const entries = await vscode.workspace.fs.readDirectory(directoryUri);
+  
+      for (const [name, type] of entries) {
+        const entryUri = vscode.Uri.joinPath(directoryUri, name);
+  
+        if (type === vscode.FileType.File) {
+          allFiles.push(entryUri); // Add file path to the list
+        } 
+        else if (type === vscode.FileType.Directory) {
+          await traverseDirectory(entryUri); // Recurse into subdirectory
+        }
+      }
+    }
+  
+    try {
+      const stat = await vscode.workspace.fs.stat(uri);
+  
+      if (stat.type === vscode.FileType.Directory) {
+        await traverseDirectory(uri);
+      } 
+      else if(stat.type === vscode.FileType.File) {
+        allFiles.push(uri);
+      }
+      else {
+        vscode.window.showErrorMessage(`${uri.fsPath} is not a file or directory.`);
+      }
+    } catch (error : Error | any) {
+      vscode.window.showErrorMessage(`Error reading directory: ${error.message}`);
+    }
+  
+    return allFiles;
+  }
+  
 }

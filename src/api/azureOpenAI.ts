@@ -10,7 +10,7 @@ if (process.env.NODE_EXTRA_CA_CERTS) {
   process.env.NODE_EXTRA_CA_CERTS = "/path/to/your/certificate.pem";
 }
 
-export class OpenAIAPI implements ApiClient {
+export class AzureOpenAiApi implements ApiClient {
   private httpsAgent = new https.Agent({
     rejectUnauthorized: false,
     ca: [
@@ -30,8 +30,8 @@ export class OpenAIAPI implements ApiClient {
   ): Promise<string> {
     const apiKey = await Settings.getApiKey();
     const baseUrl = await Settings.getBaseUrl();
-    const model = await Settings.getCurrentModel();
-    const user = await Settings.getUser();
+    const deploymentName = await Settings.getDeploymentName();
+    const apiVersion = await Settings.getApiVersion();
 
     if (!apiKey) {
       throw new Error("API key not configured");
@@ -48,19 +48,15 @@ export class OpenAIAPI implements ApiClient {
 
     const messages: ChatMessage[] = [{ role: "user", content: message }];
 
-    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    const response = await fetch(`${baseUrl}/openai/deployments/${deploymentName}/chat/completions?api-version=${apiVersion}}`, {
       method: "POST",
       agent: this.httpsAgent,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "api-key": `${apiKey}`,
       },
       body: JSON.stringify({
-        model: model,
-        messages: messages,
-        // temperature: 0.7,
-        // max_tokens: 1000,
-        user: user,
+        messages: messages
       }),
     });
 
@@ -83,8 +79,8 @@ export class OpenAIAPI implements ApiClient {
   ): Promise<string> {
     const apiKey = await Settings.getApiKey();
     const baseUrl = await Settings.getBaseUrl();
-    const model = await Settings.getCurrentModel();
-    const user = await Settings.getUser();
+    const deploymentName = await Settings.getDeploymentName();
+    const apiVersion = await Settings.getApiVersion();
 
     if (!apiKey) {
       throw new Error("API key not configured");
@@ -103,17 +99,15 @@ export class OpenAIAPI implements ApiClient {
       });
     }
 
-    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    const response = await fetch(`${baseUrl}/openai/deployments/${deploymentName}/chat/completions?api-version=${apiVersion}`, {
       method: "POST",
       agent: this.httpsAgent,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "api-key": `${apiKey}`,
       },
       body: JSON.stringify({
-        model: model,
         messages: messages,
-        user: user,
       }),
     });
 
